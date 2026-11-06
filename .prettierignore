@@ -1,0 +1,7 @@
+node_modules
+dist
+.next
+pnpm-lock.yaml
+*.tsbuildinfo
+packages/database/prisma/migrations
+test-results

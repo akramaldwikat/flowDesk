@@ -1,0 +1,35 @@
+# Portfolio replacement plan — not applied
+
+The sibling `portfolio/` has been inspected read-only. No portfolio file or environment value is changed. Apply this plan only after explicit portfolio authorization and verification of the actual published destinations. Current copy still describes proposed architecture and incomplete application work.
+
+## Exact file changes for the later authorized step
+
+| Target in `portfolio/`                                                 | Change                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/data/projects.ts`, FlowDesk entry only                            | `status: "in-progress"` → `"completed"`; English label **Completed Independent Demo Project**; Arabic **مشروع تجريبي مستقل مكتمل**. Replace proposed solution with the implemented client/project/task workflow; preserve independent-project context. Leave other projects unchanged. |
+| `src/data/content.ts`, case-study fields for both locales              | Replace caseIntro/caseStatus and design-stage review language with completed local core and verified publication status. Do not globally relabel all technologies as implemented.                                                                                                      |
+| `src/data/flowdesk.ts`                                                 | Replace the design-stage CaseCopy with `docs/case-study.md` and `docs/case-study.ar.md` in this repository. Replace proposed captions, permission rows, domain model, concept note and availability text. Include implemented, locally validated and future work explicitly.           |
+| `src/components/flowdesk-case-study.tsx`                               | Render actual screenshots with dimensions/alt/captions; replace concept block; render testing, isolation and concurrency sections; preserve bilingual navigation/RTL behavior and safe external-link attributes.                                                                       |
+| New `src/components/flowdesk-architecture.tsx`                         | Implement a case-specific Browser → Next → Nest → PostgreSQL figure with authentication, capabilities, tenant constraints and audit. Use this from the case study. Do not repurpose the existing generic illustrative system diagram into a false implementation claim.                |
+| `src/components/architecture-diagram.tsx` / `src/data/architecture.ts` | Leave their generic illustration intact. Remove the FlowDesk case's dependency on `SystemDiagram ... planned`; do not display Redis/BullMQ/external APIs as implemented FlowDesk components.                                                                                           |
+| `src/components/ui.tsx`, TechStack call site                           | Supply a FlowDesk-specific actual stack (Next/React/TypeScript/Tailwind/Nest/Express/PostgreSQL/Prisma/Zod/Argon2/pnpm/Docker); preserve generic profile/service technology lists.                                                                                                     |
+| `src/lib/site.ts` / portfolio host environment                         | Existing `NEXT_PUBLIC_FLOWDESK_GITHUB_URL` and `NEXT_PUBLIC_FLOWDESK_DEMO_URL` already support link injection. Set only verified HTTPS URLs after publication. Never set example/future destinations as if live.                                                                       |
+| New `public/projects/flowdesk/*.jpg`                                   | Copy the nine reviewed captures from this repository's `docs/screenshots/`; verify SHA-256 against the inventory. Retain fictional-data/independent-demo captions.                                                                                                                     |
+| `public/flowdesk-concept.svg`                                          | Stop using it as implementation evidence. It may remain as historical design material only if labeled; do not replace real screenshots with it.                                                                                                                                        |
+| New `tests/flowdesk-case-study.test.ts` and relevant existing tests    | Test both locale statuses/links, implemented permission scope, screenshot existence/alt text, removal of stale notifications/Redis claims and clear unavailable-live state. Update only checks whose meaning actually changed.                                                         |
+
+Proposed case navigation IDs: `overview`, `problem`, `target-users`, `requirements`, `solution`, `features`, `workflow`, `architecture`, `database`, `roles`, `tenant-isolation`, `authentication`, `security`, `concurrency`, `responsive-ux`, `testing`, `stack`, `challenges`, `lessons`, `limitations`, `roadmap`, `github`, `live-demo`. Align the `CaseSectionId` union, copy and table of contents together. Remove the old performance section's unimplemented job-system advice; state explicitly that no scale benchmark is claimed.
+
+## Factual corrections required
+
+- Member permissions are **workspace-wide business read, assigned-task status write**, not “assigned projects only.” Manager activity scope is business entities, not “managed projects.”
+- Every project requires a client; it is not optional. The actual audit model is `AuditEvent`; no Notification model exists.
+- Adding teammates uses existing registered accounts. Email invitations and notifications are not implemented.
+- React interaction is a client workspace behind an App Router entry; do not claim every workspace screen uses server-side data fetching.
+- Replace design intentions with the actual locks, composite constraints, task versions, session revocation and tests. Keep retention/quotas/reset/hosted HTTPS work labeled future until completed.
+
+## Publication conditions and verification
+
+GitHub and live-demo sections must reflect availability separately. A published repository alone does not establish a live demo. If the owner authorizes a case-study update before hosting, label completed independent core while keeping “live demo not deployed” and no live CTA. Never imply deployment from the new screenshot set.
+
+After authorized changes: run the portfolio's own format/lint/typecheck/tests/build, check English/Arabic routes, RTL layout, metadata, links, screenshot loading, mobile navigation and keyboard access. Compare all non-FlowDesk content to its baseline. Record verified source revision and live URL before publishing the case study. This document does not authorize any of those writes.

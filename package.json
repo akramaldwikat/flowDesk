@@ -1,0 +1,38 @@
+{
+  "name": "flowdesk",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "setup:local": "node scripts/setup-local.mjs",
+    "review:publication": "node scripts/review-publication.mjs",
+    "db:test:create": "pnpm --filter @flowdesk/database exec tsx src/create-test-db.ts",
+    "dev": "pnpm --filter @flowdesk/contracts build && pnpm --filter @flowdesk/database build && pnpm -r --parallel --filter @flowdesk/api --filter @flowdesk/web dev",
+    "build": "pnpm --filter @flowdesk/contracts build && pnpm --filter @flowdesk/database build && pnpm --filter @flowdesk/api build && pnpm --filter @flowdesk/web build",
+    "typecheck": "pnpm --filter @flowdesk/contracts build && pnpm --filter @flowdesk/database build && pnpm -r typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @flowdesk/database generate",
+    "db:migrate": "pnpm --filter @flowdesk/database migrate",
+    "db:validate": "pnpm --filter @flowdesk/database validate",
+    "db:seed": "pnpm --filter @flowdesk/database seed",
+    "test": "pnpm --filter @flowdesk/api test",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "^24.0.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.5",
+    "prettier": "^3.9.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1"
+  },
+  "license": "MIT"
+}

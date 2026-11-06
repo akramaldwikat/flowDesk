@@ -1,0 +1,19 @@
+name: flowdesk-local
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: flowdesk
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - flowdesk_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d flowdesk"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  flowdesk_postgres:

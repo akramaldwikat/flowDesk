@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum ClientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id           String           @id @default(uuid()) @db.Uuid
+  email        String           @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  memberships  Membership[]
+  sessions     RefreshSession[]
+}
+
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  clients     Client[]
+  projects    Project[]
+  tasks       Task[]
+  events      AuditEvent[]
+}
+
+model Membership {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  userId         String         @db.Uuid
+  role           MembershipRole @default(MEMBER)
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assignedTasks  Task[]         @relation("Assignee")
+  createdTasks   Task[]         @relation("Creator")
+  events         AuditEvent[]
+
+  @@unique([organizationId, userId])
+  @@unique([id, organizationId])
+  @@index([userId, active])
+}
+
+model Client {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  contactName    String?
+  email          String?
+  phone          String?
+  notes          String?
+  status         ClientStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  projects       Project[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status, createdAt])
+}
+
+model Project {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  clientId       String        @db.Uuid
+  name           String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  startDate      DateTime?
+  dueDate        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  client         Client        @relation(fields: [clientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  tasks          Task[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status, createdAt])
+  @@index([clientId, organizationId])
+}
+
+model Task {
+  id                    String       @id @default(uuid()) @db.Uuid
+  organizationId        String       @db.Uuid
+  projectId             String       @db.Uuid
+  title                 String
+  description           String?
+  status                TaskStatus   @default(TODO)
+  priority              TaskPriority @default(MEDIUM)
+  assigneeMembershipId  String?      @db.Uuid
+  createdByMembershipId String       @db.Uuid
+  dueDate               DateTime?
+  version               Int          @default(1)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  project               Project      @relation(fields: [projectId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  assignee              Membership?  @relation("Assignee", fields: [assigneeMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  creator               Membership   @relation("Creator", fields: [createdByMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status, dueDate])
+  @@index([projectId, organizationId])
+  @@index([assigneeMembershipId, organizationId])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  familyId  String    @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+}
+
+model AuditEvent {
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @db.Uuid
+  actorMembershipId String       @db.Uuid
+  action            String
+  entityType        String
+  entityId          String
+  metadata          Json         @default("{}")
+  createdAt         DateTime     @default(now())
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor             Membership   @relation(fields: [actorMembershipId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([actorMembershipId, organizationId])
+}
+
+model AuthThrottle {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+}
