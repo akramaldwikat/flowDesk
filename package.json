@@ -20,9 +20,13 @@
     "db:migrate": "pnpm --filter @flowdesk/database migrate",
     "db:validate": "pnpm --filter @flowdesk/database validate",
     "db:seed": "pnpm --filter @flowdesk/database seed",
-    "test": "pnpm --filter @flowdesk/api test",
+    "test": "pnpm --filter @flowdesk/api test && tsx --test apps/web/test/*.test.ts",
     "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down"
+    "infra:down": "docker compose down",
+    "build:web": "pnpm --filter @flowdesk/contracts build && pnpm --filter @flowdesk/web build",
+    "build:api": "pnpm db:generate && pnpm --filter @flowdesk/contracts build && pnpm --filter @flowdesk/database build && pnpm --filter @flowdesk/api build",
+    "demo:provision": "pnpm --filter @flowdesk/database exec tsx src/demo-cli.ts provision --confirm=flowdesk-demo-v1",
+    "demo:reset": "pnpm --filter @flowdesk/database exec tsx src/demo-cli.ts reset --confirm=flowdesk-demo-v1"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

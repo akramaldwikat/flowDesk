@@ -21,7 +21,12 @@ export async function api<T>(
     ...(options.body !== undefined
       ? { body: JSON.stringify(options.body) }
       : {}),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(120000),
+  }).catch(() => {
+    throw new ApiError(
+      503,
+      "The demo may be waking up. Wait a minute and try again.",
+    );
   });
   if (
     response.status === 401 &&
@@ -41,7 +46,7 @@ export async function api<T>(
           "Content-Type": "application/json",
           "X-FlowDesk-Request": "1",
         },
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(120000),
       })
         .then((r) => r.ok)
         .catch(() => false)
@@ -51,11 +56,11 @@ export async function api<T>(
     if (await refreshing) return api<T>(path, options, false);
   }
   const result = await response.json().catch(() => null);
-  if (!response.ok)
+  if (!response.ok || result === null)
     throw new ApiError(
-      response.status,
+      result === null ? 503 : response.status,
       result?.error?.message ||
-        "The request could not be completed. Please try again.",
+        "The demo may be waking up. Wait a minute and try again.",
       result?.error?.details,
     );
   return result as T;

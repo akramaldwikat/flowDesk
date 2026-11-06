@@ -4,12 +4,16 @@ import { ArrowUpRight, Layers3, ArrowRight, ShieldCheck } from "lucide-react";
 import { api, message } from "../lib/api";
 export function AuthScreen({
   register,
+  demoMode = false,
+  initialError = "",
   onSuccess,
 }: {
   register: boolean;
+  demoMode?: boolean;
+  initialError?: string;
   onSuccess: () => void;
 }) {
-  const [error, setError] = useState(""),
+  const [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -122,7 +126,14 @@ export function AuthScreen({
               <ArrowUpRight size={17} />
             </button>
           </form>
-          <p className="auth-switch">
+          {demoMode && (
+            <p className="demo-note">
+              Shared portfolio demo. Use the fictional Admin, Manager or Member
+              account supplied by the owner. Registration is closed. Cold starts
+              can take a minute. Use fictional data only; changes may be reset.
+            </p>
+          )}
+          <p hidden={demoMode} className="auth-switch">
             {register ? "Already have an account?" : "New to FlowDesk?"}{" "}
             <Link href={register ? "/login" : "/register"}>
               {register ? "Sign in" : "Create an account"}

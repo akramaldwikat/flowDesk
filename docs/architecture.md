@@ -4,7 +4,7 @@ FlowDesk is an Independent Demo Project, built from original source and fictiona
 
 ## Boundaries
 
-pnpm workspaces: `apps/web` (Next.js App Router), `apps/api` (NestJS modular API), `packages/database` (Prisma/PostgreSQL), `packages/contracts` (Zod requests, response types, capabilities). No Turborepo, Redis, storage or message broker is needed. Next proxies `/api` to Nest so browser cookies stay same-origin. PostgreSQL runs in a dedicated Compose project on loopback port 55434; web uses 3100 and API 4100.
+pnpm workspaces: `apps/web` (Next.js App Router), `apps/api` (NestJS modular API), `packages/database` (Prisma/PostgreSQL), `packages/contracts` (Zod requests, response types, capabilities). No Turborepo, Redis, storage or message broker is needed. Next proxies `/api` to Nest so browser cookies stay same-origin. Local PostgreSQL runs in a dedicated Compose project on loopback port 55434; local web uses 3100 and API 4100. The approved future $0 demo uses two Render Free Web Services and Neon Free PostgreSQL; see [deployment](deployment.md). The explicit Next Route Handler authenticates to the public API using a server-only secret. No business/session data depends on the Render filesystem.
 
 ## Invariants decided before implementation
 
@@ -21,4 +21,4 @@ pnpm workspaces: `apps/web` (Next.js App Router), `apps/api` (NestJS modular API
 
 M0 workspace/infrastructure → M1 relational model/migration → M2 auth/onboarding → M3 capability and tenant boundary tests → M4 clients → M5 projects → M6 tasks/assignment → M7 accessible task board → M8 dashboard/activity → M9 private local seed and end-to-end QA.
 
-Each milestone uses relevant checks. Final gate: formatting, lint, typecheck, tests against an isolated PostgreSQL database, migrations, builds, audit and a real-browser workflow. No remote repository, public credentials, deployment or portfolio update is authorized.
+Each milestone uses relevant checks. Final gate: formatting, lint, typecheck, tests against an isolated PostgreSQL database, migrations, builds, audit and a real-browser workflow. Source was published in Phase 4 Part B. Phase 5 Part B authorizes publication of the reviewed hardening and deployment to Render Free plus Neon Free. Actual deployment status is reported separately; portfolio changes remain outside scope.

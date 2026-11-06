@@ -17,7 +17,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
-  can,
+  can as hasCapability,
   taskStatuses,
   type MeView,
   type MembershipView,
@@ -128,13 +128,26 @@ function Activity({ items }: { items: AuditView[] }) {
   );
 }
 
-export function FlowdeskApp() {
+export function FlowdeskApp({ demoMode = false }: { demoMode?: boolean }) {
   const pathname = usePathname();
-  return <Workspace key={pathname} pathname={pathname} />;
+  return <Workspace key={pathname} pathname={pathname} demoMode={demoMode} />;
 }
 
-function Workspace({ pathname }: { pathname: string }) {
+function Workspace({
+  pathname,
+  demoMode,
+}: {
+  pathname: string;
+  demoMode: boolean;
+}) {
   const router = useRouter();
+  const can = (
+    role: Parameters<typeof hasCapability>[0],
+    capability: Parameters<typeof hasCapability>[1],
+  ) =>
+    !(
+      demoMode && ["organization.manage", "members.manage"].includes(capability)
+    ) && hasCapability(role, capability);
   const parts = pathname.split("/").filter(Boolean),
     orgId = parts[0] === "o" ? parts[1] : undefined,
     section = parts[2] || "dashboard",
@@ -424,6 +437,7 @@ function Workspace({ pathname }: { pathname: string }) {
               </button>
               <button
                 className="icon-button"
+                style={demoMode ? { display: "none" } : undefined}
                 aria-label={`Delete ${task.title}`}
                 onClick={() =>
                   remove(
@@ -553,15 +567,18 @@ function Workspace({ pathname }: { pathname: string }) {
     return (
       <AuthScreen
         key={pathname}
-        register={pathname === "/register"}
+        register={!demoMode && pathname === "/register"}
+        demoMode={demoMode}
+        initialError={error}
         onSuccess={() => void refreshMe()}
       />
     );
   if (
-    pathname === "/onboarding" ||
-    (!me.memberships.length &&
-      pathname !== "/login" &&
-      pathname !== "/register")
+    !demoMode &&
+    (pathname === "/onboarding" ||
+      (!me.memberships.length &&
+        pathname !== "/login" &&
+        pathname !== "/register"))
   )
     return (
       <Onboarding
@@ -587,9 +604,11 @@ function Workspace({ pathname }: { pathname: string }) {
             {m.organization?.name}
           </Link>
         ))}
-        <Link className="button" href="/onboarding">
-          Create workspace
-        </Link>
+        {!demoMode && (
+          <Link className="button" href="/onboarding">
+            Create workspace
+          </Link>
+        )}
         <button className="button secondary" onClick={() => void logout()}>
           Sign out
         </button>
@@ -601,6 +620,7 @@ function Workspace({ pathname }: { pathname: string }) {
   ];
   return (
     <Shell
+      demoMode={demoMode}
       me={me}
       membership={membership}
       section={section}
@@ -982,7 +1002,7 @@ function Workspace({ pathname }: { pathname: string }) {
                 <p>{data.client.notes || "No notes yet."}</p>
                 <Badge value={data.client.status} />
               </div>
-              {can(membership.role, "clients.manage") && (
+              {!demoMode && can(membership.role, "clients.manage") && (
                 <button
                   className="button danger secondary"
                   onClick={() =>
@@ -999,7 +1019,7 @@ function Workspace({ pathname }: { pathname: string }) {
                   }
                 >
                   <Trash2 size={15} />
-                  Delete client
+                  {demoMode ? "Deletion disabled in demo" : "Delete client"}
                 </button>
               )}
             </section>

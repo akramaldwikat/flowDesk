@@ -1,12 +1,18 @@
 import { config as dotenv } from "dotenv";
 import { resolve } from "node:path";
 import { z } from "zod";
-dotenv({ path: resolve(__dirname, "../../../.env"), quiet: true });
+import { assertDemoTarget } from "@flowdesk/database";
+if (process.env.NODE_ENV !== "production")
+  dotenv({ path: resolve(__dirname, "../../../.env"), quiet: true });
 const schema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
   DATABASE_URL: z.string().startsWith("postgresql://"),
+  APP_MODE: z.enum(["standard", "demo"]).default("standard"),
+  PROXY_SECRET: z.string().optional(),
+  DEMO_DATABASE_HOST: z.string().optional(),
+  DEMO_DATABASE_NAME: z.string().optional(),
   JWT_SECRET: z.string().min(32),
   WEB_ORIGIN: z.url().refine((value) => {
     try {
@@ -39,6 +45,31 @@ export function parseEnvironment(env: Record<string, string | undefined>) {
     throw new Error(
       "Production JWT_SECRET must be replaced with a private random value",
     );
+  if (parsed.data.APP_MODE === "demo") {
+    if (
+      parsed.data.NODE_ENV === "production" &&
+      /(ACTUAL_|REPLACE_|PLACEHOLDER)/i.test(parsed.data.WEB_ORIGIN)
+    )
+      throw new Error("Replace production origin placeholders");
+    assertDemoTarget({
+      ...env,
+      APP_MODE: parsed.data.APP_MODE,
+      NODE_ENV: parsed.data.NODE_ENV,
+      DATABASE_URL: parsed.data.DATABASE_URL,
+    });
+    if (
+      !parsed.data.PROXY_SECRET ||
+      parsed.data.PROXY_SECRET.length < 32 ||
+      /^(replace|placeholder)/i.test(parsed.data.PROXY_SECRET)
+    )
+      throw new Error(
+        "Demo requires a private PROXY_SECRET of at least 32 characters",
+      );
+    if (parsed.data.TRUST_PROXY !== "false")
+      throw new Error(
+        "Demo uses conservative global budgets; TRUST_PROXY must be false",
+      );
+  }
   return parsed.data;
 }
 export const config = parseEnvironment(process.env);

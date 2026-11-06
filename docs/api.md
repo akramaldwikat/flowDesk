@@ -5,6 +5,7 @@ Prefix `/api`. Browser uses the same-origin Next proxy. JSON requests use `Conte
 | Method             | Path                                   | Behavior                                                    |
 | ------------------ | -------------------------------------- | ----------------------------------------------------------- |
 | GET                | `/health`                              | Process liveness, independent-demo label                    |
+| GET                | `/ready`                               | Manual DB readiness; proxy secret required in demo mode     |
 | POST               | `/auth/register`                       | Name/email/password, private session                        |
 | POST               | `/auth/login`                          | Email/password, private session                             |
 | POST               | `/auth/refresh`                        | Rotate refresh cookie, revoke replayed family               |

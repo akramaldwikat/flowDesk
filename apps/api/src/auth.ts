@@ -33,6 +33,8 @@ import type { Prisma } from "@flowdesk/database";
 import { Database } from "./db";
 import { config, cookieNames } from "./config";
 import { ZodPipe } from "./http";
+import { demoPolicy } from "@flowdesk/database";
+import { isDemo, demoLock, demoForbidden, demoSessionCapacity } from "./demo";
 export type AuthRequest = Request & {
   identity: { userId: string; sessionId: string };
 };
@@ -47,6 +49,7 @@ const digest = (token: string) =>
 const safeUser = { id: true, name: true, email: true } as const;
 @Injectable()
 export class AuthService {
+  private passwordChecks = 0;
   private readonly jwt = new JwtService({ secret: config.JWT_SECRET });
   private readonly dummy = hash(
     "unavailable-account-" + randomBytes(24).toString("hex"),
@@ -54,12 +57,15 @@ export class AuthService {
   );
   constructor(@Inject(Database) private readonly db: Database) {}
   private lock(tx: Prisma.TransactionClient, userId: string) {
+    if (isDemo) return demoLock(tx);
     return tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${userId},0))`;
   }
   async throttle(ip: string, path: string) {
     const now = new Date(),
       window = Math.floor(now.getTime() / 60000);
-    const key = digest(`${ip}|${path}|${window}`);
+    const key = digest(
+      isDemo ? `demo|${path}|${window}` : `${ip}|${path}|${window}`,
+    );
     const row = await this.db.client.authThrottle.upsert({
       where: { key },
       create: { key, expiresAt: new Date((window + 1) * 60000) },
@@ -75,6 +81,7 @@ export class AuthService {
       );
   }
   async register(data: RegisterInput) {
+    demoForbidden();
     if (await this.db.client.user.findUnique({ where: { email: data.email } }))
       throw new ConflictException(
         "An account cannot be created with these details.",
@@ -89,27 +96,86 @@ export class AuthService {
     });
   }
   async login(email: string, password: string) {
+    // Hold the slot until hashing finishes, even if the HTTP client disconnects.
+    if (isDemo && this.passwordChecks >= 2)
+      throw new HttpException(
+        "The shared demo is busy. Try again shortly.",
+        429,
+      );
+    this.passwordChecks++;
+    try {
+      return await this.checkLogin(email, password);
+    } finally {
+      this.passwordChecks--;
+    }
+  }
+  private async checkLogin(email: string, password: string) {
     const user = await this.db.client.user.findUnique({ where: { email } });
     const valid = await verify(
       user?.passwordHash || (await this.dummy),
       password,
     );
-    if (!user || !valid)
+    if (
+      !user ||
+      !valid ||
+      (isDemo && !(demoPolicy.emails as readonly string[]).includes(email))
+    )
       throw new UnauthorizedException("Email or password is incorrect.");
-    return { id: user.id, name: user.name, email: user.email };
+    if (
+      isDemo &&
+      !(await this.db.client.membership.findFirst({
+        where: {
+          userId: user.id,
+          organizationId: demoPolicy.organizationId,
+          active: true,
+          role: { in: ["ADMIN", "MANAGER", "MEMBER"] },
+        },
+      }))
+    )
+      throw new UnauthorizedException("Email or password is incorrect.");
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      passwordHash: user.passwordHash,
+    };
   }
-  async issue(userId: string) {
+  async issue(userId: string, expectedHash?: string) {
     const sessionId = randomUUID(),
       secret = randomBytes(32).toString("base64url");
     await this.db.client.$transaction(async (tx) => {
       await this.lock(tx, userId);
+      if (isDemo) {
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (!user || user.passwordHash !== expectedHash)
+          throw new UnauthorizedException("Sign in again.");
+        await demoSessionCapacity(tx);
+        const active = await tx.refreshSession.findMany({
+          where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (active.length >= demoPolicy.activeSessions)
+          await tx.refreshSession.updateMany({
+            where: {
+              id: {
+                in: active
+                  .slice(demoPolicy.activeSessions - 1)
+                  .map((s) => s.id),
+              },
+            },
+            data: { revokedAt: new Date() },
+          });
+      }
       await tx.refreshSession.create({
         data: {
           id: sessionId,
           familyId: randomUUID(),
           userId,
           tokenHash: digest(secret),
-          expiresAt: new Date(Date.now() + 7 * 86400000),
+          expiresAt: new Date(
+            Date.now() +
+              (isDemo ? demoPolicy.sessionHours * 3600000 : 7 * 86400000),
+          ),
         },
       });
     });
@@ -185,6 +251,7 @@ export class AuthService {
         where: { id: current.id },
         data: { revokedAt: new Date() },
       });
+      await demoSessionCapacity(tx);
       const nextSecret = randomBytes(32).toString("base64url");
       const next = await tx.refreshSession.create({
         data: {
@@ -214,7 +281,7 @@ export class AuthService {
     res.cookie(cookieNames.refresh, tokens.refresh, {
       ...common,
       path: "/api/auth",
-      maxAge: 7 * 86400000,
+      maxAge: isDemo ? demoPolicy.sessionHours * 3600000 : 7 * 86400000,
     });
   }
   clear(res: Response) {
@@ -306,8 +373,8 @@ export class AuthController {
   ) {
     await this.auth.throttle(req.ip || "unknown", "login");
     const user = await this.auth.login(data.email, data.password);
-    this.auth.cookies(res, await this.auth.issue(user.id));
-    return { user };
+    this.auth.cookies(res, await this.auth.issue(user.id, user.passwordHash));
+    return { user: { id: user.id, name: user.name, email: user.email } };
   }
   @Post("refresh") async refresh(
     @Req() req: Request,

@@ -27,6 +27,7 @@ const navigation = [
   ["settings", "Settings", Settings],
 ] as const;
 export function Shell({
+  demoMode = false,
   me,
   membership,
   section,
@@ -34,6 +35,7 @@ export function Shell({
   onLogout,
   children,
 }: {
+  demoMode?: boolean;
   me: MeView;
   membership: MembershipView;
   section: string;
@@ -79,7 +81,9 @@ export function Shell({
                   {m.organization?.name}
                 </option>
               ))}
-              <option value="new">+ New workspace</option>
+              <option hidden={demoMode} value="new">
+                + New workspace
+              </option>
             </select>
           </div>
           <ChevronDown size={14} aria-hidden="true" />
@@ -153,6 +157,7 @@ export function Shell({
             <Badge value={membership.role} />
             <Link
               className="button secondary small workspace-add"
+              style={demoMode ? { display: "none" } : undefined}
               href="/onboarding"
             >
               <Plus size={15} />
@@ -161,6 +166,13 @@ export function Shell({
           </div>
         </header>
         <main id="main-content" className="page-container">
+          {demoMode && (
+            <p className="demo-note" role="status">
+              Shared fictional demo · 20 changes/hour · deletion and team
+              changes disabled · data may be reset. Free services may take a
+              minute to wake.
+            </p>
+          )}
           {children}
         </main>
         <footer className="workspace-footer">

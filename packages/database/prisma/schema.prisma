@@ -57,6 +57,7 @@ model Organization {
   projects    Project[]
   tasks       Task[]
   events      AuditEvent[]
+  demoControl DemoControl?
 }
 
 model Membership {
@@ -174,4 +175,14 @@ model AuthThrottle {
   key       String   @id
   count     Int      @default(1)
   expiresAt DateTime
+}
+
+model DemoControl {
+  id             String       @id
+  organizationId String       @unique @db.Uuid
+  generation     Int          @default(1)
+  mutations      Int          @default(0)
+  windowStart    DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 }

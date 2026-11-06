@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  HttpException,
 } from "@nestjs/common";
 import { Prisma } from "@flowdesk/database";
 import {
@@ -21,6 +22,15 @@ import {
 import { Database } from "./db";
 import { type AuthRequest } from "./auth";
 import { uuid } from "./http";
+import { demoPolicy } from "@flowdesk/database";
+import {
+  isDemo,
+  demoLock,
+  demoForbidden,
+  demoSession,
+  demoBudget,
+  demoRetention,
+} from "./demo";
 type Identity = AuthRequest["identity"];
 type Tx = Prisma.TransactionClient;
 const userSelect = { id: true, name: true, email: true } as const;
@@ -69,6 +79,7 @@ export class WorkspaceService {
     });
   }
   async createOrganization(identity: Identity, name: string) {
+    demoForbidden();
     return this.db.client.$transaction(async (tx) => {
       const org = await tx.organization.create({ data: { name } });
       const m = await tx.membership.create({
@@ -100,6 +111,13 @@ export class WorkspaceService {
     uuid(org);
     return this.db.client.$transaction(
       async (tx) => {
+        await demoLock(tx);
+        await demoSession(tx, identity);
+        if (
+          isDemo &&
+          ["organization.manage", "members.manage"].includes(capability)
+        )
+          demoForbidden();
         if (write)
           await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${org}::uuid FOR UPDATE`;
         else
@@ -110,7 +128,10 @@ export class WorkspaceService {
         if (!membership) throw new NotFoundException("Workspace not found.");
         if (!can(membership.role, capability))
           throw new ForbiddenException("Your role does not allow this action.");
-        return fn(tx, membership);
+        if (isDemo && write) await demoBudget(tx, org);
+        const result = await fn(tx, membership);
+        if (isDemo && write) await demoRetention(tx, org);
+        return result;
       },
       { maxWait: 10000, timeout: 15000 },
     );
@@ -254,6 +275,13 @@ export class WorkspaceService {
     if (id) uuid(id);
     return this.run(identity, org, "clients.manage", true, async (tx, m) => {
       if (
+        isDemo &&
+        !id &&
+        (await tx.client.count({ where: { organizationId: org } })) >=
+          demoPolicy.clients
+      )
+        throw new HttpException("Shared demo limit: 5 clients.", 429);
+      if (
         id &&
         !(await tx.client.findFirst({ where: { id, organizationId: org } }))
       )
@@ -274,6 +302,7 @@ export class WorkspaceService {
     });
   }
   deleteClient(identity: Identity, org: string, id: string) {
+    demoForbidden();
     uuid(id);
     return this.run(identity, org, "clients.manage", true, async (tx, m) => {
       const item = await tx.client.findFirst({
@@ -331,6 +360,13 @@ export class WorkspaceService {
   ) {
     if (id) uuid(id);
     return this.run(identity, org, "projects.manage", true, async (tx, m) => {
+      if (
+        isDemo &&
+        !id &&
+        (await tx.project.count({ where: { organizationId: org } })) >=
+          demoPolicy.projects
+      )
+        throw new HttpException("Shared demo limit: 5 projects.", 429);
       if (
         id &&
         !(await tx.project.findFirst({ where: { id, organizationId: org } }))
@@ -451,6 +487,13 @@ export class WorkspaceService {
   ) {
     if (id) uuid(id);
     return this.run(identity, org, "tasks.manage", true, async (tx, m) => {
+      if (
+        isDemo &&
+        !id &&
+        (await tx.task.count({ where: { organizationId: org } })) >=
+          demoPolicy.tasks
+      )
+        throw new HttpException("Shared demo limit: 40 tasks.", 429);
       let previous;
       if (id) {
         previous = await tx.task.findFirst({
@@ -544,6 +587,7 @@ export class WorkspaceService {
     });
   }
   deleteTask(identity: Identity, org: string, id: string, version: number) {
+    demoForbidden();
     uuid(id);
     return this.run(identity, org, "tasks.manage", true, async (tx, m) => {
       const item = await tx.task.findFirst({

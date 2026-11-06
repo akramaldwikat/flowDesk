@@ -1,74 +1,148 @@
-# Deployment preparation — not executed
+# PHASE 5 — Render Free + Neon Free runbook
 
-**Recommend one Render region/workspace: paid Next.js web service + private NestJS service + paid managed PostgreSQL.** No resources, domains, accounts or credentials have been created. Resolve the [demo launch gaps](demo-strategy.md) and obtain Akram's cost/domain/access approval before deployment.
+**Phase 5 Part B execution is approved for Free resources only. No hosted resource or live URL is verified in this runbook.** This replaces the previous paid/private-service recommendation. Target: **$0/month**. Deploy only the reviewed published revision and record actual provider/QA results separately.
 
-## Architecture comparison
+## Architecture decision
 
-| Choice                                | Cost / maintenance                                                                         | Reliability / complexity                                                              | Decision                                                                |
-| ------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Render web + private API + managed DB | Three paid resources plus storage/traffic/workspace charges; managed TLS and DB operations | One provider, private same-region connections, conventional persistent Node processes | **Recommend.** Avoids a second public API origin and OS administration. |
-| Vercel + Node host + managed DB       | Multiple vendor plans, bills and network boundaries                                        | Good frontend hosting; extra cross-provider setup and professional-use plan review    | Viable, unnecessary here.                                               |
-| Single VPS + proxy + PostgreSQL       | Potentially lower cash cost; owner patches OS, proxy, backups and restore                  | Small diagram but one failure domain and substantial operational responsibility       | More maintenance for this portfolio.                                    |
+```text
+GitHub: akramaldwikat/flowDesk, main
+  ├─ Render Free Web Service: flowdesk-web (Next.js)
+  └─ Render Free Web Service: flowdesk-api (NestJS)
 
-Checked 7 November 2026: [private services](https://render.com/docs/private-services) have no public subdomain; [web services](https://render.com/docs/web-services) require a `0.0.0.0` bind; [private networking](https://render.com/docs/private-network) offers internal service/DB URLs; [managed TLS](https://render.com/docs/tls) covers platform/custom hostnames. [Paid PostgreSQL](https://render.com/docs/postgresql-creating-connecting) offers recovery/export features. Prefer paid always-on instances over [free-plan limitations](https://render.com/docs/free). These are provider capabilities, not evidence of a deployed FlowDesk system.
-
-Cost: obtain a live dashboard quotation for two Node services, PostgreSQL compute/storage, traffic/build usage, taxes and any workspace charge. The [compute table](https://render.com/docs/compute-plans) starts Node instances at 512 MB, but that is not validated capacity for concurrent Argon2 requests. The retrieved dynamic [pricing page](https://render.com/pricing) did not reliably expose a complete quote, so no fixed monthly total is asserted. Approve a spending limit and alerts before creation. [Vercel pricing](https://vercel.com/pricing) identifies Hobby as personal/non-commercial; do not assume freelance portfolio use automatically qualifies.
-
-```mermaid
-flowchart TD
-  Reviewer[Approved reviewer: HTTPS]
-  Web[Public Next.js: one canonical origin]
-  API[Private NestJS: no public hostname]
-  DB[(Private managed PostgreSQL: disposable demo DB)]
-  Maintenance[Controlled release / maintenance identity]
-  Reviewer --> Web -->|same-origin /api rewrite| API --> DB
-  Maintenance --> DB
+Browser ─HTTPS→ Next.js /api proxy ─HTTPS→ NestJS ─TLS→ Neon Free PostgreSQL
 ```
 
-All paths, including `/api`, custom/platform hostnames and maintenance routes, must follow the approved access policy. A secret URL is not access control. Backend membership/capability/tenant checks remain mandatory even on private networking.
+Both services use https://github.com/akramaldwikat/flowDesk. Requested service names do not guarantee assigned hostnames. Record the actual provider-generated HTTPS origins after creation. No custom domain, VPS, Render database, disk, worker, scheduler, Redis, BullMQ or other service is required.
 
-## Configuration reference
+**Choose A: preserve same-origin browser behavior.** A Next.js Route Handler replaces the transparent rewrite so it can authenticate server calls. Browser requests use only `/api` on the web origin. The proxy forwards Cookie, Content-Type, Origin and X-FlowDesk-Request and overwrites X-FlowDesk-Proxy with a private shared PROXY_SECRET. It omits client forwarding/host headers, validates path segments and the fixed target origin, and refuses redirects. Separate Set-Cookie headers return unchanged: host-only Secure/HttpOnly/SameSite=Lax cookies belong to the web hostname, including refresh Path=/api/auth. Tokens never enter web storage.
 
-Use `.env.production.example` as a reference for provider settings, not as a file to upload. Never reuse development secrets, TEST_DATABASE_URL or the local DEMO_PASSWORD.
+The public API rejects calls without that secret before parsing/DB access, except GET /api/health. Unsafe methods additionally require exact WEB_ORIGIN and X-FlowDesk-Request: 1 at both servers. Nest CORS allows only WEB_ORIGIN with credentials; ordinary browser calls remain same-origin. Direct browser-to-API calls would complicate cross-site cookies and CORS. TRUST_PROXY=false avoids trusting arbitrary forwarded IPs; shared budgets do not depend on client-IP accuracy. The proxy secret supplements existing session, role and tenant checks. Never put it in NEXT_PUBLIC_ variables, client components or logs.
 
-| Process     | Required setting                                                                                                                                      |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Both        | `NODE_ENV=production`; locked Node/pnpm versions                                                                                                      |
-| API         | `WEB_ORIGIN=https://<approved-host>` — canonical origin with no path, slash, credentials, query or fragment                                           |
-| API         | New independent `JWT_SECRET` from at least 48 random bytes; internal managed `DATABASE_URL`                                                           |
-| API         | `API_BIND_HOST=0.0.0.0`, `API_PORT=10000`; local defaults stay loopback/4100                                                                          |
-| API         | `TRUST_PROXY=false` until verified. Current true trusts one hop, not an arbitrary Render topology.                                                    |
-| Web         | `API_INTERNAL_URL=http://<actual-private-api-host>:10000`, supplied before build and at runtime; rewrite destinations are compiled into the web build |
-| Maintenance | Separate demo-only migration/reset identities; never browser-visible                                                                                  |
+## Exact Render settings
 
-The API now rejects noncanonical origins, requires HTTPS, rejects known JWT secret placeholders in production and supports an explicit private-service bind. Next rejects invalid internal origins. Production access cookies use `__Host-fd_access` on `/`; refresh uses `__Secure-fd_refresh` on `/api/auth`. Both are HttpOnly, Secure, SameSite=Lax. Preserve original Origin and `X-FlowDesk-Request` through Next. CORS allows only WEB_ORIGIN.
+Both services: **Web Service**, native **Node**, **Free** instance, branch **main**, repository above, **Root Directory blank**, auto-deploy **Off**, no disk, no autoscaling. Shared packages require the repository root ([monorepo behavior](https://render.com/docs/monorepo-support)). `.node-version` pins Node 24.21.0; pnpm is 12.18.0. Use the same reviewed Git revision for both services. Do not use Docker Compose in production.
 
-Next may aggregate apparent client IPs at the API. Verify the entire provider → Next → API chain and sanitize forwarding at the boundary before changing proxy trust. Conservative shared throttling is safer than spoofable forwarded-IP trust; add account/global budgets before launch.
+### Web
 
-## Proposed release commands
-
-These are future host commands, not a deployment performed here:
+Name: `flowdesk-web`. Build Command (one line):
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm db:generate
-pnpm build
+npm exec --yes --package=pnpm@12.18.0 -- pnpm install --frozen-lockfile --prod=false && npm exec --yes --package=pnpm@12.18.0 -- pnpm build:web
 ```
 
-Web start on a POSIX host: `pnpm --filter @flowdesk/web exec next start --hostname 0.0.0.0 --port "$PORT"`. Its local start script intentionally binds to loopback/3100. Private API start: `pnpm --filter @flowdesk/api start`, using its explicit bind/port settings. Build environments must install required dev tooling even when NODE_ENV is production.
+Start Command:
 
-Run `pnpm db:migrate` once as a controlled release step before API traffic. Do not seed or schema-push on startup. Validate committed migrations/drift in disposable staging first. Use backups and compatible app rollback/restore for later destructive migrations; do not silently rewrite schema history.
+```sh
+node scripts/start-render-web.mjs
+```
 
-`/api/health` is process liveness, not ongoing DB readiness. Add/test DB-backed readiness and provider failure behavior before launch. Operational smoke must traverse HTTPS → Next rewrite → API → database. Redact cookies, passwords and connection strings from logs/alerts.
+Health Check Path: `/login` (page rendering, no DB access). The wrapper binds 0.0.0.0 on Render's PORT, default 10000. The web build requires no database secret.
 
-## Acceptance order after approval
+### API
 
-1. Implement/test the selected access restrictions, quotas, session/audit retention, provisioning/reset command and DB readiness.
-2. Approve actual provider quotation, domain, secret handling and private credential distribution.
-3. Configure canonical origin/private host before building; apply migrations with release identity.
-4. Provision fictional fixtures through a separate approved command. Existing local seed must continue to refuse production.
-5. Test HTTPS cookie flags, hostile/missing Origin, registration denial, quotas, session expiry, default-host access, private API and cross-tenant denials.
-6. Rehearse reset/restore and restart persistence; validate storage/cost/failure alerts.
-7. Record verified URLs, then separately approve portfolio updates.
+Name: `flowdesk-api`. Build Command (one line):
 
-No blueprint that could accidentally create billable resources is added. This is configuration/runbook preparation; the current app must not be exposed unchanged.
+```sh
+npm exec --yes --package=pnpm@12.18.0 -- pnpm install --frozen-lockfile --prod=false && npm exec --yes --package=pnpm@12.18.0 -- pnpm build:api
+```
+
+Start Command:
+
+```sh
+node scripts/start-render-api.mjs
+```
+
+Health Check Path: `/api/health` (process liveness, no DB query). Wrapper validates demo configuration, runs migrations, then starts Nest on 0.0.0.0 and Render's PORT. Failure stops startup with a generic message; CLI output is captured rather than exposing connection strings. No seed/reset runs on start or cold wake.
+
+Prisma generation, included in build:api:
+
+```sh
+pnpm db:generate
+```
+
+Migration command:
+
+```sh
+pnpm --filter @flowdesk/database exec prisma migrate deploy
+```
+
+Startup executes the equivalent CLI through Node. Do not configure a pre-deploy command: it is unavailable on Free web services ([deploy lifecycle](https://render.com/docs/deploys#pre-deploy-command)). Keep dev dependencies installed because startup needs the migration CLI. Routine deployment uses no interactive shell steps.
+
+## Environment matrix
+
+Enter values privately in each service's provider settings. `.env.production.example` is reference only; do not upload a populated file. Origins below mean the actual assigned HTTPS origins, without trailing slash/path/query/credentials.
+
+| Variable           | Web      | API         | Value                                                                      |
+| ------------------ | -------- | ----------- | -------------------------------------------------------------------------- |
+| NODE_ENV           | yes      | yes         | production                                                                 |
+| APP_MODE           | yes      | yes         | demo                                                                       |
+| WEB_ORIGIN         | yes      | yes         | https://ACTUAL_WEB_HOST.onrender.com                                       |
+| API_INTERNAL_URL   | yes      | no          | https://ACTUAL_API_HOST.onrender.com; historical name, public HTTPS target |
+| PROXY_SECRET       | secret   | same secret | new independent random 48-byte base64url value                             |
+| DATABASE_URL       | **no**   | secret      | direct Neon TLS URL below                                                  |
+| JWT_SECRET         | **no**   | secret      | different new random 48-byte base64url value                               |
+| TRUST_PROXY        | no       | yes         | false                                                                      |
+| DEMO_DATABASE_HOST | no       | yes         | exact direct Neon hostname; safety assertion                               |
+| DEMO_DATABASE_NAME | no       | yes         | flowdesk_demo, or name starting flowdesk_demo; safety assertion            |
+| PORT               | provider | provider    | supplied by Render                                                         |
+
+API wrapper sets API_BIND_HOST/API_PORT. Do not reuse development secrets, TEST_DATABASE_URL or local DEMO_PASSWORD. Maintenance passwords never belong in runtime environment. No secret is sent to reviewers except their privately supplied fictional account password.
+
+## Neon and Prisma
+
+Use one dedicated disposable **Neon Free** project, one branch and database `flowdesk_demo`. Choose a region near Render, minimum Free compute and idle suspension. PostgreSQL holds all business data, sessions, throttles and quotas. DATABASE_URL is the only connection source:
+
+```text
+postgresql://ROLE:URL_ENCODED_PASSWORD@ACTUAL_DIRECT_HOST.neon.tech/flowdesk_demo?sslmode=verify-full
+```
+
+Choose the **direct** connection (pooling disabled in Neon's connection dialog). Preserve generated credentials/host; percent-encode password reserved characters. Set sslmode=verify-full. Production demo rejects localhost/Docker, non-Neon, `-pooler` and non-verified-TLS URLs. Host/name assertions must exactly match the URL.
+
+Prisma 7.10.1 uses existing @prisma/adapter-pg and node-postgres over standard PostgreSQL TCP. Schema provider stays postgresql; Prisma config reads DATABASE_URL for migrations. No Neon-specific adapter/package is required. Node 24 meets [Neon's Prisma requirements](https://neon.com/docs/guides/prisma). Neon generally recommends pooled runtime/direct migration URLs; this small single-instance demo deliberately uses **one direct URL for both**, with **max 3 runtime connections**, avoiding a second URL and transaction-pool/advisory-lock concerns. Owner maintenance uses one connection. Allow headroom for deploy/migration overlap and console access; do not increase API instances/pool size without review.
+
+Pool idle timeout is 10 seconds; connection acquisition timeout is 60 seconds for wake-up. Workspace transactions wait up to 10 seconds and execute up to 15 seconds; maintenance allows 60 seconds. TLS certificates are verified; never disable verification or combine conflicting SSL options ([node-postgres SSL](https://node-postgres.com/features/ssl)). Actual future Neon endpoint/TLS must still be verified after approval.
+
+## Approved deployment procedure
+
+1. Publish the reviewed Phase 5 revision to the existing repository after the local quality gate. The current published operational core predates these hardening changes; do not deploy that old revision.
+2. Verify Render workspace and Neon organization are Free with no paid add-ons/fallback. Remain without a charge-enabled payment method, and set spending controls to zero where available. If a card or chargeable setting becomes mandatory, stop for review. Do not authorize spending.
+3. Create only the dedicated Neon Free project/database above. Obtain the direct URL privately. Record its exact host/name allowlist; never point maintenance at a database containing real or unrelated data.
+4. Prepare the two Render services with the settings above. Creation may trigger an initial deployment, so do not begin creation before approval. If final hostnames are known only after creation, allow an initial fail-closed configuration failure; record the assigned origins, update matching WEB_ORIGIN/API_INTERNAL_URL, and redeploy. Do not guess hostnames.
+5. Deploy API first with full configuration. Startup applies checked-in SQL migrations in order under Prisma locking; it creates no users. Confirm liveness. Deploy web at the same revision with final origins. Never run migrate dev, db push, migrate reset or local seed against Neon.
+6. On the owner's trusted checkout at that revision, load production DATABASE_URL, NODE_ENV=production, APP_MODE=demo and DEMO_DATABASE_HOST/NAME privately into process environment. Add distinct new DEMO_ADMIN_PASSWORD, DEMO_MANAGER_PASSWORD and DEMO_MEMBER_PASSWORD (16–128 characters each). Run the noninteractive command:
+
+   ```sh
+   pnpm demo:provision
+   ```
+
+   First provisioning requires an empty dedicated database. It creates one fictional workspace, restricted fictional Admin, Manager and Member, three clients/projects and twelve tasks. Repeat provisioning preserves data. Admin uses a distinct private demo password and remains blocked from workspace/team administration and deletion. This phase creates no hosted credentials.
+
+7. Validate via the actual web HTTPS origin: private Manager login, workspace reads, a fictional task mutation and logout. Check separate Secure/HttpOnly cookies/paths, rotation, replay/logout invalidation, Member limits, registration/admin/deletion denials, wrong Origin and direct API denials. Manually request `/api/ready` through the server proxy once; never use it as a periodic monitor. Do not put secrets in URLs or console scripts.
+8. Test actual Render idle/cold start plus Neon wake. Provider HTML/timeouts must give a safe manual retry message. No automatic mutation replay on network failures. Re-run security denials through hosted ingress. Local tests cannot prove hosted cookies/TLS/wake behavior.
+9. Record the verified assigned web URL. Only after launch approval may the portfolio link to it temporarily. No portfolio modification is included here.
+
+Schema changes must stay compatible during deploy overlap. Current DemoControl migration is additive. Inspect failures privately and use forward SQL corrections; never treat destructive fixture reset as schema recovery or auto-downgrade schemas. Keep demo access closed while resolving failures.
+
+## Protected maintenance and retention
+
+No HTTP reset endpoint/public reset secret exists. Owner-only reset uses the same explicit target and new private Admin/Manager/Member passwords:
+
+```sh
+pnpm demo:reset
+```
+
+Root scripts supply `--confirm=flowdesk-demo-v1`. Maintenance verifies Neon allowlist, marker and absence of unrelated users/organizations, takes the same transaction advisory lock as demo auth/writes, invalidates all demo sessions, rotates passwords, replaces only marked fictional fixtures and increments generation. Wrong target/missing marker/unrelated data causes refusal. It never TRUNCATEs Neon. Local test exception is only NODE_ENV=test with 127.0.0.1:55434/flowdesk_test.
+
+Reset is owner-run before review windows/at limits, not a scheduled worker. Audit pruning on successful writes retains newest 200 and seven days; auth activity removes expired session/throttle rows. Idle expired rows remain until activity/reset but their bounds prevent unbounded idle growth. Physical storage also includes indexes, dead tuples and history; row limits cannot guarantee an exact byte cap. Inspect storage manually and reset well before quota exhaustion, leaving space for cleanup. No production backup/recovery guarantee is claimed.
+
+## Free-tier operation
+
+Render Free sleeps after 15 idle minutes; wake-up can take about a minute. Filesystem is ephemeral. **750 instance-hours/month are shared across Free services in the workspace**: both cannot be continuously active all month. Exhaustion suspends service. Bandwidth/build allowances and external-traffic limits also apply; charge-enabled overages can bill. Keep no charge-enabled payment method, auto-deploy off, zero spending controls where available, and accept suspension instead of paid fallback. No uptime pings. ([Render limits](https://render.com/docs/free))
+
+Neon Free currently includes **100 CU-hours/project/month, 1 GB/project storage and 5 GB/project transfer**, with five-minute idle suspension. Compute/transfer exhaustion can suspend access; storage exhaustion blocks growth. Keep the project Free with no upgrades/add-ons. Verify live allowances before creation. ([Neon Free plan](https://neon.com/docs/introduction/plans))
+
+App measures: 3 DB connections, 8 in-flight API requests, 2 concurrent password checks, 120 proxy-authenticated requests/minute/process, PostgreSQL login/refresh throttle 30/minute/endpoint, 20 successful writes/hour, no polling, bounded pagination/JSON bodies, 110-second upstream and 120-second browser timeout. Wake-up may exceed those timeouts; show manual retry guidance. Shared reviewers can affect one another's fictional data and sessions. These controls do not guarantee immunity to provider-edge abuse or uninterrupted availability.
+
+## Approval boundary
+
+No hosting resources, production secrets, deployment or DNS have been created/configured. Actual hostnames, free enrollment/billing enforcement, regions, HTTPS cookies/TLS and cold starts remain future validation. Part B permits Free deployment; report **LIVE DEMO DEPLOYMENT COMPLETE** only after actual hosted verification, otherwise report the concrete blocker.

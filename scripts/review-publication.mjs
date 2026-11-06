@@ -18,7 +18,7 @@ const localSecrets = [];
 if (existsSync(".env"))
   for (const line of readFileSync(".env", "utf8").split(/\r?\n/)) {
     const match = line.match(
-      /^(?:POSTGRES_PASSWORD|JWT_SECRET|DEMO_PASSWORD)=(.+)$/,
+      /^(?:POSTGRES_PASSWORD|JWT_SECRET|PROXY_SECRET|DEMO_PASSWORD|DEMO_ADMIN_PASSWORD|DEMO_MANAGER_PASSWORD|DEMO_MEMBER_PASSWORD)=(.+)$/,
     );
     if (match && match[1].length >= 12)
       localSecrets.push(match[1].replace(/^['"]|['"]$/g, ""));

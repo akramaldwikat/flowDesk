@@ -1,13 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 export * from "@prisma/client";
-export function createDatabase(url: string) {
+export * from "./demo-policy";
+export function createDatabase(url: string, max = 3) {
   return new PrismaClient({
     adapter: new PrismaPg({
       connectionString: url,
-      max: 10,
-      connectionTimeoutMillis: 5000,
+      max,
+      connectionTimeoutMillis: 60000,
       idleTimeoutMillis: 10000,
+      allowExitOnIdle: true,
     }),
   });
 }

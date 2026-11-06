@@ -1,45 +1,36 @@
-# Demo strategy and exposure review
+# Public demo safeguards
 
-**Design only. No public demo is enabled or deployed.** Current production mode does not disable registration or business writes. Launch controls below remain unimplemented.
+Implemented locally for APP_MODE=demo; no hosted demo exists. See the [Render Free + Neon Free runbook](deployment.md). Standard local development retains normal registration/admin behavior. Production demo startup requires an explicitly allowlisted dedicated Neon TLS target.
 
-| Option                                                 | Benefit                                                             | Risk / complexity                                                                                                           | Recommendation                                                           |
-| ------------------------------------------------------ | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| A: shared public read/write accounts + automatic reset | Instant hands-on access                                             | Credential harvesting, interference and destruction; hard quotas plus reliable unattended reset needed                      | Reject for first release. A scheduled reset alone does not bound growth. |
-| B: predefined accounts + restricted destruction        | Guided role comparison                                              | Still needs server restrictions, quotas, retention and contention management; published passwords attract distributed abuse | Possible later.                                                          |
-| C: private review credentials                          | Known small audience; no password on GitHub/portfolio; manual reset | Access is not instant; forwarded credentials still require technical limits                                                 | **Choose for initial portfolio demo.**                                   |
+## Access and mutations
 
-## Recommended access and limits
+Only predefined fictional Admin (admin@flowdesk.example), Manager (manager@flowdesk.example) and Member (member@flowdesk.example) accounts may sign in. Passwords are privately provisioned for approved reviewers, never published in source/UI/screenshots. Admin is a restricted application demo role; it grants no hosting/database account access. No public admin or reset credential exists.
 
-Use short-lived reviewer access, separate fictional workspace per reviewer and at most **three active review workspaces**. Offer Manager/Member review; retain Admin privately. Credentials must be generated separately from local secrets and delivered privately, never in source, images, URLs or public issues. None are created/distributed in Part A.
+Backend denies registration, new workspaces, organization/member administration and deletion. Existing RBAC permits Managers ordinary client/project/task edits and Members assigned-task status changes. Origin, session and tenant checks remain required. UI suppresses registration/workspace creation/deletion and explains shared data/cold starts. Visitors cannot provision accounts/tenants.
 
-Start with **read-only review access** and the validated workflow evidence. If write access is later approved, allow ordinary business changes only inside the reviewer's workspace; block registration, organization creation and membership/role changes for demo accounts. Enforce read-only/allowlist in the API and reflect it in the UI. Hiding buttons is insufficient. These controls are **not implemented yet**.
+## Bounds
 
-Proposed hard limits: 5 clients, 5 projects and 40 tasks per review workspace; 5 active sessions/account; 10 refresh rotations/minute/account; global ceilings alongside tenant ceilings. Enforce counts transactionally under concurrent requests. These are proposed operating limits, not measured capacity. No public reset endpoint. Add account/global login budgets because IP-only throttling does not stop distributed abuse.
+| Resource                               | Demo limit                                             |
+| -------------------------------------- | ------------------------------------------------------ |
+| Workspaces / fictional users           | 1 / 3 (all may log in)                                 |
+| Clients / projects / tasks             | 5 / 5 / 40                                             |
+| Successful business mutations          | 20 shared per hour                                     |
+| Active sessions                        | 3 per account; oldest revoked on excess login          |
+| Session rows including replay evidence | 100 globally; refuse issuance/rotation at capacity     |
+| Session absolute lifetime              | 12 hours, not extended by rotation                     |
+| Audit history                          | newest 200, seven days on next successful write        |
+| Auth throttle                          | shared PostgreSQL 30/minute per login/refresh endpoint |
+| Per-process admission                  | 120/minute, 8 active requests, 2 password checks       |
+| JSON request                           | 20 KiB at proxy and API                                |
 
-## Required before hosted access
+Counts and mutation budgets run under the same transaction advisory lock and organization lock as business writes. Rejected writes roll budget back. Reset uses the same lock; a second session check inside each workspace transaction prevents pre-reset requests from writing afterward. Login issuance rechecks the verified password hash under lock to reject old credentials after rotation/reset. Expired sessions are deleted; unexpired revoked rows remain for replay detection until expiry. Shared reviewers can exhaust one another's limits.
 
-| Boundary                | Existing control                                                | Launch gap                                                                                               |
-| ----------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Registration/accounts   | Strict validation and IP throttle                               | Disable direct POST register; replace registration entry; provision approved accounts only               |
-| Organization/membership | RBAC, last Admin, revocation                                    | Block demo organization creation/admin mutations; separate owner recovery                                |
-| Creation/destruction    | RBAC, lifecycle rules, task versions                            | Read-only/allowlist, transaction-safe tenant/global quotas, useful limit errors                          |
-| Auth abuse              | PostgreSQL IP/path fixed-window limit                           | Account/global login/refresh budgets, session cap, reviewer expiry, verified ingress IP handling         |
-| Database growth         | Pagination and payload limits                                   | Hard record bounds, session/audit retention, storage alerts; reset disposable data around review windows |
-| Session storage         | Rotation/replay revocation, absolute expiry                     | Prune retired families only after absolute expiry; do not remove replay evidence early                   |
-| HTTPS/session delivery  | HttpOnly, production Secure prefixes and paths                  | Validate actual HTTPS cookie behavior and session revocation behind host proxy                           |
-| CSRF/CORS               | Exact Origin and custom header, narrow CORS                     | Verify preservation through rewrite and denials on both custom/default hostnames                         |
-| Enumeration             | Membership-scoped not-found responses and composite constraints | Re-run negative tests through deployed public path; UUID secrecy is not authority                        |
-| Network/proxy           | Loopback defaults; explicit bind supported                      | Private API/DB; verify chain before trusting forwarded IP headers                                        |
-| Request budgets         | 20 KiB JSON limit and field limits                              | Match upstream time/body/request/concurrency budgets                                                     |
-| Health/recovery         | Process liveness and startup DB connect                         | DB-backed readiness, reset/restore rehearsal, redacted failure alerts                                    |
-| Privacy                 | Fictional seed, no uploads/integrations                         | Fictional-only notice; no reviewer personal records; never log cookies or secrets                        |
+## Maintenance and retention
 
-The existing 37 tests do not validate these unimplemented policies. Add disabled-register, demo-admin-denial, quota race, session-cap, expired-reviewer and wrong-target-reset tests. No security certification is claimed.
+Owner-only `pnpm demo:provision` / `pnpm demo:reset` require a dedicated target allowlist and explicit marker confirmation. No HTTP maintenance interface exists. Provisioning refuses nonempty unrecognized data; repeat provisioning preserves fixtures. Reset refuses missing/wrong markers or unrelated users/organizations, invalidates sessions, rotates all three private passwords, replaces only fictional fixtures and increments generation transactionally. Tests use only the guarded local database.
 
-## Provisioning/reset design
+Cleanup runs with writes/authentication and owner maintenance, without background services or polling. Idle expired records can persist until activity, with bounded growth. Physical storage still needs manual monitoring for indexes, MVCC dead tuples and provider history. Use fictional information only and reset before/after review windows. No hosted backup/recovery guarantee is claimed.
 
-Use a **separate disposable managed demo database**, never development/test/portfolio or real operational data. Give the runtime only needed business privileges; keep release/migration and maintenance identities separate in provider secret storage.
+## Validation boundary
 
-Keep the current seed's production refusal. After strategy approval, build a separate maintenance command requiring an explicit demo marker, allowlisted database name/host, explicit workspace IDs, maintenance lock and deliberate confirmation flag. Reject unknown targets; do not infer a target from arbitrary DATABASE_URL. Revoke demo sessions, delete scoped events/tasks/projects/clients/memberships in dependency order and reseed atomically from versioned fictional fixtures. Preserve other tenants. Never log passwords/connection strings. Test wrong-target refusal and rollback first.
-
-Begin with **manual reset before and after each review window**. Close access during reset and fail closed if maintenance fails. Delete expired reviewer accounts when finished. If unattended access later needs nightly resets, use one provider-scheduled command; no Redis/BullMQ. Hard quotas bound growth; resets restore a useful starting state. Session/audit retention is also required before claiming storage is bounded.
+Local PostgreSQL negative tests cover proxy-only admission, closed registration, role/admin restrictions, quota races, successful-write budgets, sessions, stale requests after reset, retention and maintenance target protection. Proxy tests cover server-only credential injection, separate cookie forwarding, Origin/path/body denials and safe cold-start errors. Actual Render/Neon TLS/cookies/wake behavior requires post-approval hosted smoke tests. No certification or guaranteed availability is claimed.

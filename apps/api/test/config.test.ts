@@ -38,6 +38,36 @@ test("production config: local bind remains default and explicit private-service
   );
 });
 test("production config: invalid settings fail without exposing submitted secrets", () => {
+  const demo = {
+    ...environment,
+    APP_MODE: "demo",
+    DATABASE_URL:
+      "postgresql://ep-fixture.neon.tech/flowdesk_demo?sslmode=verify-full",
+    DEMO_DATABASE_HOST: "ep-fixture.neon.tech",
+    DEMO_DATABASE_NAME: "flowdesk_demo",
+    PROXY_SECRET: "test-only-server-proxy-value-at-least-32-characters",
+  };
+  assert.equal(parseEnvironment(demo).APP_MODE, "demo");
+  assert.throws(() =>
+    parseEnvironment({
+      ...demo,
+      PROXY_SECRET: "REPLACE_WITH_A_PRIVATE_RANDOM_PROXY_SECRET",
+    }),
+  );
+  assert.throws(() =>
+    parseEnvironment({
+      ...demo,
+      WEB_ORIGIN: "https://ACTUAL_WEB_HOST.onrender.com",
+    }),
+  );
+  assert.throws(() =>
+    parseEnvironment({
+      ...demo,
+      DEMO_DATABASE_HOST: "ACTUAL_HOST.neon.tech",
+      DATABASE_URL:
+        "postgresql://ACTUAL_HOST.neon.tech/flowdesk_demo?sslmode=verify-full",
+    }),
+  );
   assert.throws(() =>
     parseEnvironment({
       ...environment,

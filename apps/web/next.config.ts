@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 const localEnv = resolve(process.cwd(), "../../.env");
-if (existsSync(localEnv)) process.loadEnvFile(localEnv);
+if (process.env.NODE_ENV !== "production" && existsSync(localEnv))
+  process.loadEnvFile(localEnv);
 const api = process.env.API_INTERNAL_URL || "http://127.0.0.1:4100";
 let internalOrigin: URL;
 try {
@@ -20,9 +21,6 @@ if (
 const config: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ["@flowdesk/contracts"],
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${api}/api/:path*` }];
-  },
   async headers() {
     return [
       {

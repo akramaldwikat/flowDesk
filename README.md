@@ -66,7 +66,7 @@ Exact resolutions are in `pnpm-lock.yaml`. No Redis or Turborepo is needed. Nati
 
 ## Security model
 
-Argon2id password hashing; ten-minute access JWTs; seven-day absolute refresh sessions with hashed random secrets, rotation and replay-family revocation. Tokens are HttpOnly SameSite cookies, with Secure flags in production. Revocation is checked on protected requests. Tokens never appear in response JSON or web storage.
+Argon2id password hashing; ten-minute access JWTs; seven-day standard-mode absolute refresh sessions (12 hours in demo) with hashed random secrets, rotation and replay-family revocation. Tokens are HttpOnly SameSite cookies, with Secure flags in production. Revocation is checked on protected requests. Tokens never appear in response JSON or web storage.
 
 Mutations require the exact trusted Origin and a custom request header. The API validates requests strictly, limits JSON body size, rate-limits sensitive authentication operations in PostgreSQL and returns safe errors. These are implemented controls, not a security certification. Public exposure requires additional [demo access and abuse controls](docs/demo-strategy.md).
 
@@ -126,20 +126,20 @@ Open [localhost:3100](http://localhost:3100). Use `localhost` in the browser to 
 | `TEST_DATABASE_URL`                  | Dedicated local `flowdesk_test` database                                          |
 | `JWT_SECRET`                         | Private JWT signing secret, minimum 32 characters                                 |
 | `WEB_ORIGIN`                         | Canonical HTTP(S) origin, no path/credentials/query/fragment; HTTPS in production |
-| `API_INTERNAL_URL`                   | Canonical server-to-server API origin; supplied before web build                  |
-| `API_PORT`, `API_BIND_HOST`          | 4100 and loopback by default; explicit private-service bind when deployed         |
+| `API_INTERNAL_URL`                   | Canonical server-to-server API origin; read at runtime                            |
+| `API_PORT`, `API_BIND_HOST`          | 4100 and loopback by default; Render wrapper binds 0.0.0.0 and PORT               |
 | `TRUST_PROXY`                        | false locally; only enable for a verified ingress topology                        |
 | `DEMO_PASSWORD`                      | Private local seed password; never a public demo credential                       |
 
-The root environment is loaded server-side. `.env.production.example` is a placeholder reference for future hosting, **not a safe-demo switch**. Production must use new secrets, not local values. Read [deployment preparation](docs/deployment.md).
+Local development loads the root environment server-side; production uses provider variables only. The approved $0 target is two Render Free Node services plus Neon Free PostgreSQL. APP_MODE=demo enables closed registration, bounded fictional data and protected maintenance. See the exact [deployment runbook and environment matrix](docs/deployment.md); `.env.production.example` is a placeholder reference, never a populated production file.
 
 ### Fictional local seed
 
-Northstar Digital contains three role accounts, three clients, three projects and twelve tasks. Local seed emails are `admin@flowdesk.example`, `manager@flowdesk.example` and `member@flowdesk.example`; the password is the private generated `DEMO_PASSWORD` in your own `.env`. No password is distributed here. Reseeding preserves existing records and passwords; the seed refuses production mode. Public-demo provisioning/reset is a separate, not-yet-implemented operation.
+Northstar Digital contains three role accounts, three clients, three projects and twelve tasks. Local seed emails are `admin@flowdesk.example`, `manager@flowdesk.example` and `member@flowdesk.example`; the password is the private generated `DEMO_PASSWORD` in your own `.env`. No password is distributed here. Reseeding preserves existing records and passwords; the seed refuses production mode. Production demo provisioning/reset uses separate guarded owner-only commands; see [demo safeguards](docs/demo-strategy.md).
 
 ## Validation
 
-The Phase 4 local suite has **37 passing tests**: 34 API/database integration scenarios plus three production-configuration cases. Negative tests cover foreign organizations and references, insufficient roles, revoked sessions, refresh replay, stale task writes and last-Admin protection. Tests deploy real migrations and truncate only the guarded local `flowdesk_test` database on port 55434.
+The original Phase 4 suite has 37 scenarios; Phase 5 adds real-PostgreSQL demo-policy tests and server-proxy tests. See [testing](docs/testing.md) for the current validated total. Negative tests cover foreign organizations and references, insufficient roles, revoked sessions, refresh replay, stale task writes and last-Admin protection. Tests deploy real migrations and truncate only the guarded local `flowdesk_test` database on port 55434.
 
 ```sh
 pnpm format:check
@@ -158,9 +158,9 @@ pnpm review:publication
 
 ## Demo and limitations
 
-Recommended future access: private review credentials, closed registration and bounded, disposable fictional data. Credentials will be supplied privately after the launch controls and hosting are approved. No live URL is claimed. [Demo strategy](docs/demo-strategy.md) compares the options and lists unimplemented launch blockers.
+Prepared future access: predefined Admin/Manager/Member accounts supplied privately, closed registration, no demo administration/deletion, transactional quotas and owner-only reset. No live URL is claimed. [Demo safeguards](docs/demo-strategy.md) and the [free deployment runbook](docs/deployment.md) describe implemented controls and future hosted validation.
 
-No password recovery, email verification, MFA or email invitations. Roles share workspace-wide read access; no private project groups. The board paginates 40 tasks and labels page counts. Reference selectors load all workspace choices for a small team. Strict refresh replay protection can require signing in again after cross-tab races. Retention jobs, backups/restore rehearsal, live monitoring, public-demo quotas and a browser automation suite remain future work. ESLint 9 is deprecated upstream but matches the installed Next plugin peer ranges. No performance-at-scale or customer-adoption claim is made.
+No password recovery, email verification, MFA or email invitations. Roles share workspace-wide read access; no private project groups. The board paginates 40 tasks and labels page counts. Reference selectors load all workspace choices for a small team. Strict refresh replay protection can require signing in again after cross-tab races. Retention runs on activity and owner maintenance; hosted backup/restore rehearsal, live monitoring and a browser automation suite remain future work. ESLint 9 is deprecated upstream but matches the installed Next plugin peer ranges. No performance-at-scale or customer-adoption claim is made.
 
 ## Review and reuse
 
