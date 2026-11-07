@@ -1,6 +1,6 @@
 # PHASE 5 — Render Free + Neon Free runbook
 
-**Phase 5 Part B execution is approved for Free resources only. No hosted resource or live URL is verified in this runbook.** This replaces the previous paid/private-service recommendation. Target: **$0/month**. Deploy only the reviewed published revision and record actual provider/QA results separately.
+**Phase 5 Part B is restricted to Free resources.** The verified URLs, deployed revision, provider settings, and QA results are in the [hosted verification report](phase-5-deployment-report.md). This runbook documents how to deploy and maintain the demo within a **$0/month** configuration.
 
 ## Architecture decision
 
@@ -143,6 +143,6 @@ Neon Free currently includes **100 CU-hours/project/month, 1 GB/project storage 
 
 App measures: 3 DB connections, 8 in-flight API requests, 2 concurrent password checks, 120 proxy-authenticated requests/minute/process, PostgreSQL login/refresh throttle 30/minute/endpoint, 20 successful writes/hour, no polling, bounded pagination/JSON bodies, 110-second upstream and 120-second browser timeout. Wake-up may exceed those timeouts; show manual retry guidance. Shared reviewers can affect one another's fictional data and sessions. These controls do not guarantee immunity to provider-edge abuse or uninterrupted availability.
 
-## Approval boundary
+## Deployment record
 
-No hosting resources, production secrets, deployment or DNS have been created/configured. Actual hostnames, free enrollment/billing enforcement, regions, HTTPS cookies/TLS and cold starts remain future validation. Part B permits Free deployment; report **LIVE DEMO DEPLOYMENT COMPLETE** only after actual hosted verification, otherwise report the concrete blocker.
+Record actual provider settings and QA results in the [hosted verification report](phase-5-deployment-report.md). Keep the portfolio outside this deployment phase.

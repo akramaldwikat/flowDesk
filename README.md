@@ -10,7 +10,9 @@ The engineering focus is correctness at the boundaries: organization-scoped auth
 
 ![FlowDesk dashboard with fictional Northstar Digital records](docs/screenshots/dashboard-desktop.jpg)
 
-**Status:** operational core completed and validated locally. Source repository: [akramaldwikat/flowDesk](https://github.com/akramaldwikat/flowDesk). Live hosting remains blocked pending separate approval and launch controls. **Live demo: not deployed.** No public credentials are available. See [the publication review](docs/publication-review.md) and [launch blockers](docs/demo-strategy.md).
+**Live Demo:** [Open FlowDesk](https://flowdesk-web-8atx.onrender.com/). The free-tier demo may take about a minute to wake after inactivity. Request a fictional Admin, Manager, or Member account from the owner to explore the shared workspace.
+
+**Status:** the operational core passed local validation and is hosted on Render Free with Neon Free PostgreSQL. See the [hosted verification report](docs/phase-5-deployment-report.md) and [demo safeguards](docs/demo-strategy.md).
 
 ## What works
 
@@ -158,7 +160,7 @@ pnpm review:publication
 
 ## Demo and limitations
 
-Prepared future access: predefined Admin/Manager/Member accounts supplied privately, closed registration, no demo administration/deletion, transactional quotas and owner-only reset. No live URL is claimed. [Demo safeguards](docs/demo-strategy.md) and the [free deployment runbook](docs/deployment.md) describe implemented controls and future hosted validation.
+Hosted access uses predefined Admin, Manager, and Member accounts supplied privately. Registration, workspace and team administration, and deletion are disabled. Transactional quotas and owner-only reset keep the fictional workspace bounded. See the [demo safeguards](docs/demo-strategy.md) and [free deployment runbook](docs/deployment.md).
 
 No password recovery, email verification, MFA or email invitations. Roles share workspace-wide read access; no private project groups. The board paginates 40 tasks and labels page counts. Reference selectors load all workspace choices for a small team. Strict refresh replay protection can require signing in again after cross-tab races. Retention runs on activity and owner maintenance; hosted backup/restore rehearsal, live monitoring and a browser automation suite remain future work. ESLint 9 is deprecated upstream but matches the installed Next plugin peer ranges. No performance-at-scale or customer-adoption claim is made.
 

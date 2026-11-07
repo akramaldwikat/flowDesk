@@ -1,6 +1,6 @@
 # Public demo safeguards
 
-Implemented locally for APP_MODE=demo; no hosted demo exists. See the [Render Free + Neon Free runbook](deployment.md). Standard local development retains normal registration/admin behavior. Production demo startup requires an explicitly allowlisted dedicated Neon TLS target.
+Enabled in the [hosted demo](https://flowdesk-web-8atx.onrender.com/) with APP_MODE=demo. See the [deployment report](phase-5-deployment-report.md) and [Render Free + Neon Free runbook](deployment.md). Standard local development retains normal registration and administration behavior. Production demo startup requires an explicitly allowlisted dedicated Neon TLS target.
 
 ## Access and mutations
 
@@ -33,4 +33,4 @@ Cleanup runs with writes/authentication and owner maintenance, without backgroun
 
 ## Validation boundary
 
-Local PostgreSQL negative tests cover proxy-only admission, closed registration, role/admin restrictions, quota races, successful-write budgets, sessions, stale requests after reset, retention and maintenance target protection. Proxy tests cover server-only credential injection, separate cookie forwarding, Origin/path/body denials and safe cold-start errors. Actual Render/Neon TLS/cookies/wake behavior requires post-approval hosted smoke tests. No certification or guaranteed availability is claimed.
+Local PostgreSQL negative tests cover proxy-only admission, closed registration, role/admin restrictions, quota races, successful-write budgets, sessions, stale requests after reset, retention and maintenance target protection. Proxy tests cover server-only credential injection, separate cookie forwarding, Origin/path/body denials and safe cold-start errors. The [hosted verification report](phase-5-deployment-report.md) distinguishes checks performed in production from local coverage.
